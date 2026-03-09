@@ -1,0 +1,2 @@
+id,model_name,hyperparameters,train_loss,val_loss,metrics,timestamp
+f46a80ae-3873-446f-aacd-4fe5c324c0a9,BLIP,"{""model_name"": ""BLIP"", ""pretrained_id"": ""Salesforce/blip-vqa-base"", ""learning_rate"": 5e-05, ""batch_size"": 8, ""epochs"": 3, ""gradient_accumulation_steps"": 4, ""max_length"": 32, ""mixed_precision"": true, ""seed"": 42, ""checkpoint_dir"": ""/kaggle/working/outputs/checkpoints""}",3.731405,3.70174,"{""accuracy"": 0.3308, ""f1"": 0.2393, ""bleu"": 0.0613}",2026-03-08T19:25:01.916335+00:00
