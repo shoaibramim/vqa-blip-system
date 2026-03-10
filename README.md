@@ -22,19 +22,27 @@ training loop.
 
 ---
 
-## Improvements Over Baseline
+## Methodology
 
-| Root Cause                                                        | Fix Applied                                                                                                           |
-| ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| First comma-token of multi-label answers always mapped to label 0 | `_resolve_answer()` splits on commas and walks sub-tokens; training randomly shuffles sub-tokens (label augmentation) |
-| Only the last epoch logged in `VQAExperiments.csv`                | `ExperimentLogger.log_epoch()` appends immediately; row ID uses `{uuid}_ep{epoch}`                                    |
-| Flat MLP head after CLS token                                     | 3-layer MLP: `Linear → LayerNorm → GELU → Dropout → Linear`                                                           |
-| Constant learning rate                                            | Cosine schedule with 10 % linear warm-up (`get_cosine_schedule_with_warmup`)                                          |
-| Class-weight cap of 10× caused loss spikes (33.8 observed)        | Cap reduced to **3×** — limits per-batch loss contribution of singleton classes                                       |
-| Only 1,449 unique images reused ~7× → overfitting                 | `RandomHorizontalFlip + ColorJitter + RandomResizedCrop` (training split only)                                        |
-| Per-epoch checkpoint (~400 MB × 6 = 2.4 GB) filled Kaggle disk    | **Best-only checkpointing** — single `BLIP_best.pt`; old file deleted before new write                                |
-| High dropout (0.3) underfitting small head                        | `Dropout(0.15)` — reduced regularisation for a well-constrained classification head                                   |
-| Gradient accumulation steps 4 → effective batch too small         | Accumulation steps **8** → effective batch of **64**                                                                  |
+The system approaches VQA as a **582-class multi-class classification** problem over the [Visual Question Answering — Computer Vision & NLP](https://www.kaggle.com/datasets/bhavikardeshna/visual-question-answering-computer-vision-nlp) Kaggle dataset.
+
+**Multi-label answer normalisation.** Approximately 10 % of answer strings in `answer_space.txt` are comma-separated (e.g. `"picture, wall_decoration"`). A dedicated `_resolve_answer()` method splits on commas and selects sub-tokens that exist in the answer vocabulary. During training a valid sub-token is sampled randomly (label augmentation); during evaluation the first valid sub-token is always selected for deterministic scoring.
+
+**Classification head design.** The BLIP question-answering backbone's generative decoder is discarded. The `[CLS]` token from the joint multimodal encoder is fed through a 3-layer MLP classification head — `Linear(768, 512) → LayerNorm → GELU → Dropout(0.2) → Linear(512, num_classes)` — providing sufficient capacity for 582 output classes with built-in regularisation.
+
+**Progressive vision unfreezing.** The ViT image encoder is frozen for the first 5 training epochs so the randomly-initialised classifier head stabilises before the pretrained vision weights are updated. After epoch 5 the vision encoder is added to the optimiser at one-tenth the base learning rate.
+
+**Optimiser and learning-rate schedule.** AdamW (`lr=4e-5`, `weight_decay=0.01`) is used throughout. A cosine decay schedule with a 10 % linear warm-up (`get_cosine_schedule_with_warmup`) is stepped after every gradient accumulation cycle rather than once per epoch.
+
+**Class-weighted loss.** With 806 singleton classes across 9,974 training samples the label distribution is highly skewed. Inverse-frequency class weights, capped at 5× to prevent loss spikes from very rare classes, are passed to `CrossEntropyLoss` with label smoothing of 0.1.
+
+**Mixed precision and gradient accumulation.** Eight-step gradient accumulation yields an effective batch size of 64, improving gradient estimate quality without exceeding GPU memory limits. `torch.cuda.amp` mixed-precision training is enabled by default.
+
+**Data augmentation.** With only 1,449 unique images appearing approximately seven times each, training-time augmentation (`RandomHorizontalFlip`, `ColorJitter`, `RandomResizedCrop`) is applied to the PIL image before the BLIP processor, providing additional image variety to reduce overfitting.
+
+**Best-only checkpointing.** Only the single best-validation-accuracy checkpoint is retained (`BLIP_best.pt`), replacing the previous file on each improvement. This keeps disk usage within Kaggle's 20 GB limit.
+
+**Per-epoch experiment logging.** After each validation pass, metrics (loss, accuracy, F1, BLEU) are immediately appended to `VQAExperiments.csv` with a unique `{uuid}_ep{epoch}` row identifier, ensuring a complete record even if training is interrupted.
 
 ---
 
@@ -58,7 +66,7 @@ Image + Question
        │                                 │
   [CLS] embedding (768-d)          Concatenated (1024-d)
        │                                 │
-  Linear(768→512) → LayerNorm → GELU → Dropout(0.15) → Linear(512→C)
+  Linear(768→512) → LayerNorm → GELU → Dropout(0.2) → Linear(512→C)
        │
        ▼  argmax
   Predicted Answer Class  ──►  VQAManager ──► ExperimentLogger
@@ -70,13 +78,13 @@ Image + Question
 
 Training details:
 
-- **Optimiser:** AdamW (`lr=3e-5`, `weight_decay=0.01`)
+- **Optimiser:** AdamW (`lr=4e-5`, `weight_decay=0.01`)
 - **Schedule:** cosine with 10 % warm-up, stepped per optimizer update
 - **Loss:** `CrossEntropyLoss` with label smoothing 0.1 and inverse-frequency
   class weights (capped at 3×)
 - **AMP:** `torch.cuda.amp` mixed precision enabled by default
 - **Gradient accumulation:** 8 steps → effective batch size 64
-- **Vision freeze:** first 3 epochs; then unfrozen at 10× reduced LR
+- **Vision freeze:** first 5 epochs; then unfrozen at 10× reduced LR
 
 ---
 
@@ -86,7 +94,7 @@ Training details:
 vqa-blip-system/
 │
 ├── data/
-│   └── Dataset_VQA_CVNLP.txt    
+│   └── Dataset_VQA_CVNLP.txt
 │
 ├── src/
 │   ├── __init__.py
@@ -195,12 +203,12 @@ python main.py --model blip --resume outputs/checkpoints/BLIP_best.pt
 ```
 --data_dir              Path to dataset root           (default: data/Dataset_VQA_CVNLP)
 --model                 blip | clip                    (default: blip)
---epochs                Training epochs                (default: 10)
+--epochs                Training epochs                (default: 15)
 --batch_size            Samples per batch              (default: 8)
---lr                    AdamW learning rate            (default: 3e-5)
+--lr                    AdamW learning rate            (default: 4e-5)
 --gradient_accum...     Grad accumulation steps        (default: 8)
---classifier_dropout    MLP head dropout probability   (default: 0.15)
---class_weight_cap      Max class weight for CE loss   (default: 3.0)
+--classifier_dropout    MLP head dropout probability   (default: 0.2)
+--class_weight_cap      Max class weight for CE loss   (default: 5.0)
 --num_workers           DataLoader workers             (default: 0)
 --max_length            Question token max length      (default: 32)
 --checkpoint_dir        Checkpoint save dir            (default: outputs/checkpoints)
@@ -241,7 +249,7 @@ Metrics are printed after each validation epoch and appended immediately to
 `experiments/VQAExperiments.csv` (one row per epoch with a unique
 `{uuid}_ep{epoch}` ID).
 
-### Benchmark Results (BLIP, 10 epochs, Kaggle T4)
+### Benchmark Results (BLIP, 15 epochs, Kaggle T4)
 
 | Epoch  | Val Accuracy | Val F1     | Val BLEU   |
 | ------ | ------------ | ---------- | ---------- |

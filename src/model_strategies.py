@@ -114,7 +114,7 @@ class _BLIPClassificationModel(nn.Module):
     def __init__(
         self, blip_model: BlipForQuestionAnswering, num_classes: int,
         freeze_vision: bool = True,
-        dropout: float = 0.15,
+        dropout: float = 0.2,
     ) -> None:
         super().__init__()
         self.blip = blip_model
@@ -178,7 +178,7 @@ class BLIPStrategy(ModelStrategy):
 
     PRETRAINED_ID = "Salesforce/blip-vqa-base"
 
-    def __init__(self, freeze_vision: bool = True, dropout: float = 0.15) -> None:
+    def __init__(self, freeze_vision: bool = True, dropout: float = 0.2) -> None:
         self._model: Optional[_BLIPClassificationModel] = None
         self._device: Optional[torch.device] = None
         self._freeze_vision = freeze_vision
@@ -254,7 +254,7 @@ class _CLIPFusionModel(nn.Module):
             nn.Linear(embed_dim * 2, 512),
             nn.LayerNorm(512),
             nn.GELU(),
-            nn.Dropout(0.15),
+            nn.Dropout(0.2),
             nn.Linear(512, num_classes),
         )
 

@@ -46,33 +46,33 @@ class VQAManager:
 
     Default hyperparameters
     -----------------------
-    learning_rate               : 3e-5
+    learning_rate               : 4e-5
     batch_size                  : 8
-    epochs                      : 10
+    epochs                      : 15
     gradient_accumulation_steps : 8
     label_smoothing             : 0.1
     warmup_ratio                : 0.1
     weight_decay                : 0.01
     max_grad_norm               : 1.0
-    freeze_vision_epochs        : 3
-    classifier_dropout          : 0.15
-    class_weight_cap            : 3.0
+    freeze_vision_epochs        : 5
+    classifier_dropout          : 0.2
+    class_weight_cap            : 5.0
     checkpoint_dir              : outputs/checkpoints
     mixed_precision             : True
     """
 
     _DEFAULT_CONFIG: Dict[str, Any] = {
-        "learning_rate"              : 3e-5,
+        "learning_rate"              : 4e-5,
         "batch_size"                 : 8,
-        "epochs"                     : 10,
+        "epochs"                     : 15,
         "gradient_accumulation_steps": 8,
         "label_smoothing"            : 0.1,
         "warmup_ratio"               : 0.1,
         "weight_decay"               : 0.01,
         "max_grad_norm"              : 1.0,
-        "freeze_vision_epochs"       : 3,
-        "classifier_dropout"         : 0.15,
-        "class_weight_cap"           : 3.0,
+        "freeze_vision_epochs"       : 5,
+        "classifier_dropout"         : 0.2,
+        "class_weight_cap"           : 5.0,
         "checkpoint_dir"             : "outputs/checkpoints",
         "mixed_precision"            : True,
     }

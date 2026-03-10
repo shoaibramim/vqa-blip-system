@@ -53,7 +53,7 @@ def parse_args() -> argparse.Namespace:
         help="Model strategy to use for training.",
     )
     parser.add_argument(
-        "--epochs", type=int, default=10, help="Number of training epochs."
+        "--epochs", type=int, default=15, help="Number of training epochs."
     )
     parser.add_argument(
         "--batch_size", type=int, default=8, help="Samples per batch."
@@ -61,7 +61,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--lr",
         type=float,
-        default=3e-5,
+        default=4e-5,
         help="AdamW learning rate.",
     )
     parser.add_argument(
@@ -112,13 +112,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--classifier_dropout",
         type=float,
-        default=0.15,
+        default=0.2,
         help="Dropout probability in the MLP classification head (BLIP).",
     )
     parser.add_argument(
         "--class_weight_cap",
         type=float,
-        default=3.0,
+        default=5.0,
         help="Maximum class weight cap for CrossEntropyLoss (reduces loss spikes).",
     )
     parser.add_argument(
