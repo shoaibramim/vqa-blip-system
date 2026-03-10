@@ -271,34 +271,6 @@ After training, `outputs/predictions.csv` contains rows such as:
 
 ---
 
-## Pushing to GitHub
-
-```bash
-# Initialise git in the project root
-git init
-git add .
-git commit -m "Initial commit: VQA BLIP system"
-
-# Push to a new GitHub repository
-git remote add origin https://github.com/<your-username>/vqa-blip-system.git
-git branch -M main
-git push -u origin main
-```
-
-Add a `.gitignore` to exclude large files:
-
-```gitignore
-outputs/checkpoints/
-data/
-__pycache__/
-*.pt
-*.pyc
-.env
-venv/
-```
-
----
-
 ## Hardware Requirements
 
 | Setting       | Minimum (Kaggle T4) | Recommended       |
